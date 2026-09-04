@@ -1,49 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useRouter, useParams } from 'next/navigation';
 import { sessionService } from '../../../services/api';
 import toast from 'react-hot-toast';
 
-export default function AdminSessionsPage() {
+export default function SessionDetailPage() {
   const router = useRouter();
-  const [sessions, setSessions] = useState<any[]>([]);
+  const params = useParams();
+  const sessionId = params.id as string;
+  
+  const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState({
-    status: '',
-    date_from: '',
-    date_to: ''
-  });
 
   useEffect(() => {
-    loadSessions();
-  }, []);
+    loadSession();
+  }, [sessionId]);
 
-  const loadSessions = async () => {
-    setLoading(true);
-    setError('');
+  const loadSession = async () => {
     try {
-      const params: any = {};
-      if (filters.status) params.status = filters.status;
-      if (filters.date_from) params.date_from = filters.date_from;
-      if (filters.date_to) params.date_to = filters.date_to;
-
-      console.log('📤 Chargement des sessions avec paramètres:', params);
-
-      const data = await sessionService.getAll(params);
-      console.log('📥 Réponse du serveur:', data);
-
+      const data = await sessionService.getById(sessionId);
       if (data.success) {
-        setSessions(data.data || []);
+        setSession(data.data);
       } else {
-        setError(data.message || 'Erreur de chargement');
-        toast.error(data.message || 'Erreur de chargement');
+        setError('Session non trouvée');
+        toast.error('Session non trouvée');
       }
-    } catch (error: any) {
-      console.error('❌ Erreur:', error);
-      setError(error.response?.data?.message || 'Erreur de connexion au serveur');
-      toast.error(error.response?.data?.message || 'Erreur de connexion au serveur');
+    } catch (error) {
+      console.error('Erreur chargement session:', error);
+      setError('Erreur de chargement');
+      toast.error('Erreur de chargement de la session');
     } finally {
       setLoading(false);
     }
@@ -79,15 +66,6 @@ export default function AdminSessionsPage() {
     return colors[status] || 'badge-gray';
   };
 
-  const applyFilters = () => {
-    loadSessions();
-  };
-
-  const resetFilters = () => {
-    setFilters({ status: '', date_from: '', date_to: '' });
-    setTimeout(loadSessions, 100);
-  };
-
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '256px' }}>
@@ -96,24 +74,18 @@ export default function AdminSessionsPage() {
     );
   }
 
-  if (error) {
+  if (error || !session) {
     return (
-      <div>
-        <div className="page-header">
-          <h1 className="page-title">📋 Toutes les sessions</h1>
-          <p className="page-subtitle">Erreur de chargement</p>
-        </div>
-        <div className="section" style={{ textAlign: 'center', padding: '40px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>⚠️</div>
-          <p style={{ color: '#dc2626', fontSize: '16px' }}>{error}</p>
-          <button
-            onClick={loadSessions}
-            className="btn btn-primary"
-            style={{ marginTop: '16px' }}
-          >
-            🔄 Réessayer
-          </button>
-        </div>
+      <div style={{ textAlign: 'center', padding: '48px 0' }}>
+        <div style={{ fontSize: '48px', marginBottom: '16px' }}>😕</div>
+        <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#0f172a' }}>{error || 'Session non trouvée'}</h2>
+        <button
+          onClick={() => router.push('/admin/sessions')}
+          className="btn btn-primary"
+          style={{ marginTop: '16px' }}
+        >
+          Retour aux sessions
+        </button>
       </div>
     );
   }
@@ -121,105 +93,144 @@ export default function AdminSessionsPage() {
   return (
     <div>
       <div className="page-header">
-        <h1 className="page-title">📋 Toutes les sessions</h1>
-        <p className="page-subtitle">{sessions.length} session(s)</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          <h1 className="page-title">{session.session_identifier}</h1>
+          <span className={`badge ${getStatusColor(session.status)}`}>
+            {getStatusLabel(session.status)}
+          </span>
+        </div>
+        <p className="page-subtitle">
+          {session.assembly_name} • {session.entrance_name}
+        </p>
       </div>
 
-      {/* Filtres */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', marginBottom: '24px' }}>
+        <div className="stat-card">
+          <div className="stat-card-label">Total</div>
+          <div className="stat-card-value" style={{ fontSize: '32px' }}>{session.total_count}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Hommes</div>
+          <div className="stat-card-value" style={{ fontSize: '32px', color: '#3b82f6' }}>{session.men_count || 0}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Femmes</div>
+          <div className="stat-card-value" style={{ fontSize: '32px', color: '#ec4899' }}>{session.women_count || 0}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Enfants</div>
+          <div className="stat-card-value" style={{ fontSize: '32px', color: '#22c55e' }}>{session.children_count || 0}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Durée</div>
+          <div className="stat-card-value" style={{ fontSize: '24px' }}>
+            {session.duration ? `${Math.floor(session.duration / 60)}m ${session.duration % 60}s` : 'N/A'}
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-card-label">Méthode</div>
+          <div className="stat-card-value" style={{ fontSize: '20px', textTransform: 'capitalize' }}>
+            {session.method === 'auto' ? '🤖 Automatique' : '👤 Manuel'}
+          </div>
+        </div>
+      </div>
+
       <div className="section">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-          <div className="form-group">
-            <label className="form-label">Statut</label>
-            <select
-              className="form-control"
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            >
-              <option value="">Tous</option>
-              <option value="started">En cours</option>
-              <option value="completed">Terminée</option>
-              <option value="validated">Validée</option>
-              <option value="locked">Verrouillée</option>
-              <option value="pending_validation">En attente</option>
-            </select>
+        <h2 className="section-title" style={{ marginBottom: '16px' }}>📋 Détails de la session</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Assemblée</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>{session.assembly_name}</div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Date de début</label>
-            <input
-              type="date"
-              className="form-control"
-              value={filters.date_from}
-              onChange={(e) => setFilters({ ...filters, date_from: e.target.value })}
-            />
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Entrée</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>{session.entrance_name}</div>
           </div>
-          <div className="form-group">
-            <label className="form-label">Date de fin</label>
-            <input
-              type="date"
-              className="form-control"
-              value={filters.date_to}
-              onChange={(e) => setFilters({ ...filters, date_to: e.target.value })}
-            />
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Culte</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>{session.service_title || 'N/A'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Compteur</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>{session.user_name || 'N/A'}</div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Début</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>
+              {new Date(session.start_time).toLocaleString()}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Fin</div>
+            <div style={{ fontWeight: '500', color: '#0f172a' }}>
+              {session.end_time ? new Date(session.end_time).toLocaleString() : 'En cours'}
+            </div>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
-          <button onClick={applyFilters} className="btn btn-primary">
-            Appliquer les filtres
-          </button>
-          <button onClick={resetFilters} className="btn btn-outline">
-            Réinitialiser
-          </button>
-        </div>
+
+        {session.validation_notes && (
+          <div style={{ marginTop: '16px', padding: '12px', background: '#f8fafc', borderRadius: '8px' }}>
+            <div style={{ fontSize: '12px', color: '#94a3b8' }}>Notes de validation</div>
+            <div style={{ color: '#0f172a' }}>{session.validation_notes}</div>
+          </div>
+        )}
       </div>
 
-      {/* Liste des sessions */}
-      <div className="table-container">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Session</th>
-              <th>Assemblée</th>
-              <th>Compteur</th>
-              <th>Total</th>
-              <th>Statut</th>
-              <th>Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                  Aucune session enregistrée
-                </td>
-              </tr>
-            ) : (
-              sessions.map((session) => (
-                <tr
-                  key={session.id}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => router.push(`/admin/sessions/${session.id}`)}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#f8fafc'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
-                >
-                  <td>
-                    <code style={{ fontSize: '14px', color: '#64748b' }}>{session.session_identifier}</code>
-                  </td>
-                  <td>{session.assembly_name || '-'}</td>
-                  <td>{session.user_name || '-'}</td>
-                  <td style={{ fontWeight: 'bold', color: '#0f172a' }}>{session.total_count}</td>
-                  <td>
-                    <span className={`badge ${getStatusColor(session.status)}`}>
-                      {getStatusLabel(session.status)}
-                    </span>
-                  </td>
-                  <td style={{ fontSize: '14px', color: '#94a3b8' }}>
-                    {new Date(session.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+        <button
+          onClick={() => router.push('/admin/sessions')}
+          className="btn btn-outline"
+        >
+          ← Retour
+        </button>
+        {session.status === 'completed' && (
+          <>
+            <button
+              onClick={async () => {
+                try {
+                  await sessionService.validate(session.id, { validation_notes: 'Validé depuis l\'admin' });
+                  toast.success('Session validée');
+                  loadSession();
+                } catch (error) {
+                  toast.error('Erreur de validation');
+                }
+              }}
+              className="btn btn-success"
+            >
+              ✅ Valider
+            </button>
+            <button
+              onClick={async () => {
+                try {
+                  await sessionService.lock(session.id, { lock_reason: 'Verrouillé depuis l\'admin' });
+                  toast.success('Session verrouillée');
+                  loadSession();
+                } catch (error) {
+                  toast.error('Erreur de verrouillage');
+                }
+              }}
+              className="btn btn-primary"
+            >
+              🔒 Verrouiller
+            </button>
+          </>
+        )}
+        <button
+          onClick={async () => {
+            if (confirm('Voulez-vous vraiment supprimer cette session ?')) {
+              try {
+                await sessionService.delete(session.id);
+                toast.success('Session supprimée');
+                router.push('/admin/sessions');
+              } catch (error) {
+                toast.error('Erreur de suppression');
+              }
+            }
+          }}
+          className="btn btn-danger"
+        >
+          🗑️ Supprimer
+        </button>
       </div>
     </div>
   );
