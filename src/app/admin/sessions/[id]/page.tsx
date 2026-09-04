@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { assemblyService } from '../../../../services/api';
+import { sessionService } from '../../../../services/api';  // ✅ AJOUTER CETTE LIGNE
 import toast from 'react-hot-toast';
-
 export default function SessionDetailPage() {
   const router = useRouter();
   const params = useParams();
