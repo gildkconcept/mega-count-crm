@@ -16,7 +16,8 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const response = await fetch('https://floors-amino-steel-nine.trycloudflare.com', {
+      // ✅ CORRIGÉ : Ajout de /api/auth/login
+      const response = await fetch('https://floors-amino-steel-nine.trycloudflare.com/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
