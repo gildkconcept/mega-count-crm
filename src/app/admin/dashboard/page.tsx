@@ -17,13 +17,13 @@ export default function AdminDashboardPage() {
     try {
       const token = localStorage.getItem('token');
       
-      const statsRes = await fetch('http://localhost:3001/api/statistics/dashboard', {
+      const statsRes = await fetch('https://floors-amino-steel-nine.trycloudflare.com/api/statistics/dashboard', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const statsData = await statsRes.json();
       if (statsData.success) setStats(statsData.data);
 
-      const sessionsRes = await fetch('http://localhost:3001/api/sessions', {
+      const sessionsRes = await fetch('https://floors-amino-steel-nine.trycloudflare.com/api/sessions', {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const sessionsData = await sessionsRes.json();
